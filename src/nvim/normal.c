@@ -7166,6 +7166,16 @@ static void nv_record(cmdarg_T *cap)
     if (cap->nchar == ':' || cap->nchar == '/' || cap->nchar == '?') {
       stuffcharReadbuff(cap->nchar);
       stuffcharReadbuff(K_CMDWIN);
+    } else if (cap->nchar == '[') {
+      exarg_T eap;
+      eap.cmdidx = CMD_copen;
+      eap.addr_count = 0;
+      ex_copen(&eap);
+    } else if (cap->nchar == ']') {
+      exarg_T eap;
+      eap.cmdidx = CMD_lopen;
+      eap.addr_count = 0;
+      ex_copen(&eap);
     } else
     /* (stop) recording into a named register, unless executing a
      * register */
