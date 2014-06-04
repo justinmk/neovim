@@ -7555,9 +7555,9 @@ static void draw_tabline(void)
       for (wincount = 0; wp != NULL; wp = wp->w_next, ++wincount)
         if (bufIsChanged(wp->w_buffer))
           modified = TRUE;
-      if (modified || wincount > 1) {
-        if (wincount > 1) {
-          vim_snprintf((char *)NameBuff, MAXPATHL, "%d", wincount);
+      //if (modified || wincount > 1) {
+        //if (wincount > 1) {
+          vim_snprintf((char *)NameBuff, MAXPATHL, "%d", tabpage_index(tp));
           len = (int)STRLEN(NameBuff);
           if (col + len >= Columns - 3)
             break;
@@ -7565,11 +7565,11 @@ static void draw_tabline(void)
               hl_combine_attr(attr, hl_attr(HLF_T))
               );
           col += len;
-        }
+        //}
         if (modified)
           screen_puts_len((char_u *)"+", 1, 0, col++, attr);
         screen_putchar(' ', 0, col++, attr);
-      }
+      //}
 
       room = scol - col + tabwidth - 1;
       if (room > 0) {
