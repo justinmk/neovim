@@ -3,6 +3,8 @@
 
 #include <assert.h>
 #include <stdlib.h>
+       #include <sys/types.h>
+       #include <sys/wait.h>
 
 #include <uv.h>
 
@@ -16,6 +18,7 @@
 #include "nvim/globals.h"
 #include "nvim/macros.h"
 #include "nvim/log.h"
+#include "nvim/main.h"
 
 #ifdef INCLUDE_GENERATED_DECLARATIONS
 # include "event/process.c.generated.h"
@@ -176,6 +179,7 @@ int process_wait(Process *proc, int ms, MultiQueue *events)
   bool interrupted = false;
   if (!proc->refcount) {
     status = proc->status;
+    ILOG("status=%d", status);
     LOOP_PROCESS_EVENTS(proc->loop, proc->events, 0);
     return status;
   }
@@ -227,19 +231,31 @@ int process_wait(Process *proc, int ms, MultiQueue *events)
 /// Ask a process to terminate and eventually kill if it doesn't respond
 void process_stop(Process *proc) FUNC_ATTR_NONNULL_ALL
 {
+  ILOG("here");
+  // log_uv_handles(&proc->loop->uv, false);
   if (proc->stopped_time) {
     return;
   }
 
+  int stat = 0;
+  int pid;
+  // do {
+  pid = waitpid(proc->pid, &stat, WNOHANG);
+  // } while (pid < 0 && errno == EINTR);
+  ILOG("pid=%d, stat=%d", pid, stat);
+
   proc->stopped_time = os_hrtime();
   switch (proc->type) {
     case kProcessTypeUv:
+      ILOG("kProcessTypeUv pid: %d", ((LibuvProcess *)proc)->uv.pid);
       // Close the process's stdin. If the process doesn't close its own
       // stdout/stderr, they will be closed when it exits(possibly due to being
       // terminated after a timeout)
       process_close_in(proc);
       break;
     case kProcessTypePty:
+      ILOG("kProcessTypePty pid: %d", proc->pid);
+      // os_microdelay(10, true);
       // close all streams for pty processes to send SIGHUP to the process
       process_close_streams(proc);
       pty_process_close_master((PtyProcess *)proc);
@@ -263,6 +279,7 @@ static void children_kill_cb(uv_timer_t *handle)
 {
   Loop *loop = handle->loop->data;
   uint64_t now = os_hrtime();
+  ILOG("children_kill_cb");
 
   kl_iter(WatcherPtr, loop->children, current) {
     Process *proc = (*current)->data;
@@ -316,6 +333,7 @@ static void decref(Process *proc)
 static void process_close(Process *proc)
   FUNC_ATTR_NONNULL_ARG(1)
 {
+  ILOG("process_close");
   if (process_is_tearing_down && (proc->detach || proc->type == kProcessTypePty)
       && proc->closed) {
     // If a detached/pty process dies while tearing down it might get closed
@@ -386,6 +404,7 @@ static void flush_stream(Process *proc, Stream *stream)
 
 static void process_close_handles(void **argv)
 {
+  ILOG("process_close_handles");
   Process *proc = argv[0];
 
   flush_stream(proc, proc->out);
@@ -397,6 +416,7 @@ static void process_close_handles(void **argv)
 
 static void on_process_exit(Process *proc)
 {
+  ILOG("here");
   Loop *loop = proc->loop;
   if (proc->stopped_time && loop->children_stop_requests
       && !--loop->children_stop_requests) {

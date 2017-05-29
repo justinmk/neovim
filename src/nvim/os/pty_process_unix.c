@@ -59,6 +59,7 @@ int pty_process_spawn(PtyProcess *ptyproc)
     ELOG("forkpty failed: %s", strerror(errno));
     return status;
   } else if (pid == 0) {
+    ILOG("init_child");
     init_child(ptyproc);
     abort();
   }
@@ -113,6 +114,7 @@ void pty_process_resize(PtyProcess *ptyproc, uint16_t width, uint16_t height)
 void pty_process_close(PtyProcess *ptyproc)
   FUNC_ATTR_NONNULL_ALL
 {
+  ILOG("pty_process_close");
   pty_process_close_master(ptyproc);
   Process *proc = (Process *)ptyproc;
   if (proc->internal_close_cb) {
@@ -122,14 +124,21 @@ void pty_process_close(PtyProcess *ptyproc)
 
 void pty_process_close_master(PtyProcess *ptyproc) FUNC_ATTR_NONNULL_ALL
 {
+  ILOG("pty_process_close_master");
   if (ptyproc->tty_fd >= 0) {
     close(ptyproc->tty_fd);
     ptyproc->tty_fd = -1;
   }
+  // Process *proc = (Process *)ptyproc;
+  // uv_signal_stop(&proc->loop->children_watcher);
 }
 
 void pty_process_teardown(Loop *loop)
 {
+  ILOG("pty_process_teardown &loop->children_watcher=%p", &loop->children_watcher);
+  // ILOG("signum=%d", ((uv_signal_t *)0x9f7500)->signum);
+  // uv_unref((uv_handle_t *)0x9f7500);
+  // uv_signal_stop((uv_signal_t *)0x9f7500);
   uv_signal_stop(&loop->children_watcher);
 }
 
@@ -253,6 +262,7 @@ static void chld_handler(uv_signal_t *handle, int signum)
   do {
     pid = waitpid(-1, &stat, WNOHANG);
   } while (pid < 0 && errno == EINTR);
+  ILOG("pid=%d", pid);
 
   if (pid <= 0) {
     return;
