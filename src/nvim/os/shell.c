@@ -12,7 +12,7 @@
 #include "nvim/lib/kvec.h"
 #include "nvim/log.h"
 #include "nvim/event/loop.h"
-#include "nvim/event/libuv_process.h"
+#include "nvim/os/pty_process.h"
 #include "nvim/event/rstream.h"
 #include "nvim/os/shell.h"
 #include "nvim/os/signal.h"
@@ -207,15 +207,14 @@ static int do_os_system(char **argv,
   char prog[MAXPATHL];
   xstrlcpy(prog, argv[0], MAXPATHL);
 
-  Stream in, out, err;
-  LibuvProcess uvproc = libuv_process_init(&main_loop, &buf);
+  Stream in, out;
+  PtyProcess uvproc = pty_process_init(&main_loop, &buf);
   Process *proc = &uvproc.process;
   MultiQueue *events = multiqueue_new_child(main_loop.events);
   proc->events = events;
   proc->argv = argv;
   proc->in = input != NULL ? &in : NULL;
   proc->out = &out;
-  proc->err = &err;
   int status = process_spawn(proc);
   if (status) {
     loop_poll_events(&main_loop, 0);
@@ -242,9 +241,6 @@ static int do_os_system(char **argv,
   proc->out->events = NULL;
   rstream_init(proc->out, 0);
   rstream_start(proc->out, data_cb, &buf);
-  proc->err->events = NULL;
-  rstream_init(proc->err, 0);
-  rstream_start(proc->err, data_cb, &buf);
 
   // write the input, if any
   if (input) {
