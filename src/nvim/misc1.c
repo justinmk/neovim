@@ -2112,7 +2112,7 @@ static void changed_common(linenr_T lnum, colnr_T col, linenr_T lnume, long xtra
         set_topline(wp, wp->w_topline);
 
       // relative numbering may require updating more
-      if (wp->w_p_rnu) {
+      if (!vpeekc() && wp->w_p_rnu) {
         redraw_win_later(wp, SOME_VALID);
       }
     }

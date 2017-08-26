@@ -24,6 +24,7 @@
 #include "nvim/diff.h"
 #include "nvim/edit.h"
 #include "nvim/fold.h"
+#include "nvim/getchar.h"
 #include "nvim/mbyte.h"
 #include "nvim/memline.h"
 #include "nvim/misc1.h"
@@ -103,6 +104,15 @@ static void comp_botline(win_T *wp)
 */
 static void redraw_for_cursorline(win_T *wp)
 {
+// #define NS_1_MS 1000000000U  // 1 millisecond, in nanoseconds
+//   static uint64_t last = 0;
+//   uint64_t diff = os_hrtime() - last;
+//   if (diff < NS_1_MS || vpeekc()) {
+//     return;
+//   }
+//   ILOG("diff=%d", diff);
+//   ILOG("vpeekc()=%d", vpeekc());
+//   last = os_hrtime();
   if ((wp->w_p_rnu || wp->w_p_cul)
       && (wp->w_valid & VALID_CROW) == 0
       && !pum_visible()) {

@@ -7035,7 +7035,8 @@ static void n_opencmd(cmdarg_T *cap)
       if (curwin->w_p_cole > 0 && oldline != curwin->w_cursor.lnum) {
         update_single_line(curwin, oldline);
       }
-      if (curwin->w_p_cul) {
+      if (!vpeekc() && curwin->w_p_cul) {
+        ILOG("vpeekc()=%d", vpeekc());
         // force redraw of cursorline
         curwin->w_valid &= ~VALID_CROW;
       }

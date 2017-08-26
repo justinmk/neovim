@@ -34,6 +34,8 @@ void state_enter(VimState *s)
     int key;
 
 getkey:
+    ILOG("state_enter");
+    curwin->w_p_cul = false;
     if (char_avail() || using_script() || input_available()) {
       // Don't block for events if there's a character already available for
       // processing. Characters can come from mappings, scripts and other
@@ -44,7 +46,9 @@ getkey:
       key = K_EVENT;
     } else {
       input_enable_events();
+      curwin->w_p_cul = true;
       // Flush screen updates before blocking
+      ILOG("state_enter ui_flush");
       ui_flush();
       // Call `os_inchar` directly to block for events or user input without
       // consuming anything from `input_buffer`(os/input.c) or calling the
