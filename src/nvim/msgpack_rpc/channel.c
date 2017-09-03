@@ -44,8 +44,33 @@ static msgpack_sbuffer out_buffer;
 # include "msgpack_rpc/channel.c.generated.h"
 #endif
 
+static Map(String, MsgpackRpcRequestHandler) *notif_handlers = NULL;
+static void rpc_add_notif_handler(String name,
+                                           MsgpackRpcRequestHandler handler)
+{
+  map_put(String, MsgpackRpcRequestHandler)(notif_handlers, name, handler);
+}
+MsgpackRpcRequestHandler rpc_get_notif_handler(const char *name,
+                                                     size_t name_len)
+{
+  String m = { .data = (char *)name, .size = name_len };
+  MsgpackRpcRequestHandler rv =
+    map_get(String, MsgpackRpcRequestHandler)(notif_handlers, m);
+  return rv;
+}
+
 void rpc_init(void)
 {
+  notif_handlers = map_new(String, MsgpackRpcRequestHandler)();
+  rpc_add_notif_handler((String) {
+                           .data = "focusgained",
+                           .size = sizeof("focusgained") - 1,
+                         },
+                         (MsgpackRpcRequestHandler) {
+                           .fn = handle_nvim_focusgained,
+                           .async = true,
+                         });
+
   ch_before_blocking_events = multiqueue_new_child(main_loop.events);
   event_strings = pmap_new(cstr_t)();
   msgpack_sbuffer_init(&out_buffer);
@@ -316,8 +341,8 @@ static void handle_request(Channel *channel, msgpack_object *request)
   msgpack_object *method = msgpack_rpc_method(request);
 
   if (method) {
-    handler = msgpack_rpc_get_handler_for(method->via.bin.ptr,
-                                          method->via.bin.size);
+    handler = rpc_get_method_handler(method->via.bin.ptr,
+                                     method->via.bin.size);
   } else {
     handler.fn = msgpack_rpc_handle_missing_method;
     handler.async = true;
@@ -469,7 +494,18 @@ static void broadcast_event(const char *name, Array args)
 {
   kvec_t(Channel *) subscribed = KV_INITIAL_VALUE;
   Channel *channel;
+  const String method = cstr_as_string((char *)name);
 
+  // Publish to INTERNAL notification handlers.
+  MsgpackRpcRequestHandler handler = rpc_get_notif_handler(method.data,
+                                                           method.size);
+  if (handler.fn != NULL) {
+    Object result = handler.fn(0, args, NULL);
+    // Notification handlers do not return results.
+    assert(result.type == kObjectTypeNil);
+  }
+
+  // Publish to EXTERNAL notification handlers.
   map_foreach_value(channels, channel, {
     if (channel->is_rpc
         && pmap_has(cstr_t)(channel->rpc.subscribed_events, name)) {
@@ -482,13 +518,8 @@ static void broadcast_event(const char *name, Array args)
     goto end;
   }
 
-  const String method = cstr_as_string((char *)name);
-  WBuffer *buffer = serialize_request(0,
-                                      0,
-                                      method,
-                                      args,
-                                      &out_buffer,
-                                      kv_size(subscribed));
+  WBuffer *buffer =
+    serialize_request(0, 0, method, args, &out_buffer, kv_size(subscribed));
 
   for (size_t i = 0; i < kv_size(subscribed); i++) {
     Channel *channel = kv_A(subscribed, i);

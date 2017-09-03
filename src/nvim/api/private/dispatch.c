@@ -23,14 +23,15 @@
 
 static Map(String, MsgpackRpcRequestHandler) *methods = NULL;
 
-static void msgpack_rpc_add_method_handler(String method,
+static void rpc_add_method_handler(String method,
                                            MsgpackRpcRequestHandler handler)
 {
   map_put(String, MsgpackRpcRequestHandler)(methods, method, handler);
 }
 
-MsgpackRpcRequestHandler msgpack_rpc_get_handler_for(const char *name,
-                                                     size_t name_len)
+/// Gets the C handler associated with a RPC method name.
+MsgpackRpcRequestHandler rpc_get_method_handler(const char *name,
+                                                size_t name_len)
 {
   String m = { .data = (char *)name, .size = name_len };
   MsgpackRpcRequestHandler rv =

@@ -19,7 +19,9 @@
 #include "nvim/lua/executor.h"
 #include "nvim/vim.h"
 #include "nvim/buffer.h"
+#include "nvim/aucmd.h"
 #include "nvim/file_search.h"
+#include "nvim/fileio.h"
 #include "nvim/window.h"
 #include "nvim/types.h"
 #include "nvim/ex_docmd.h"
@@ -899,8 +901,8 @@ Array nvim_call_atomic(uint64_t channel_id, Array calls, Error *err)
     }
     Array args = call.items[1].data.array;
 
-    MsgpackRpcRequestHandler handler = msgpack_rpc_get_handler_for(name.data,
-                                                                   name.size);
+    MsgpackRpcRequestHandler handler = rpc_get_method_handler(name.data,
+                                                              name.size);
     Object result = handler.fn(channel_id, args, &nested_error);
     if (ERROR_SET(&nested_error)) {
       // error handled after loop
@@ -1561,4 +1563,11 @@ Object nvim_get_proc(Integer pid, Error *err)
   }
 #endif
   return rvobj;
+}
+
+Object handle_nvim_focusgained(uint64_t channel_id, Array args, Error *error)
+{
+  LOG_CALLSTACK();
+  aucmd_schedule_focusgained(true);
+  return NIL;
 }

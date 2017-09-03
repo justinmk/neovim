@@ -290,7 +290,7 @@ void msgpack_rpc_init_method_table(void)
 
 for i = 1, #functions do
   local fn = functions[i]
-  output:write('  msgpack_rpc_add_method_handler('..
+  output:write('  rpc_add_method_handler('..
                '(String) {.data = "'..fn.name..'", '..
                '.size = sizeof("'..fn.name..'") - 1}, '..
                '(MsgpackRpcRequestHandler) {.fn = handle_'..  (fn.impl_name or fn.name)..
