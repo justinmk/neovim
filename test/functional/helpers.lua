@@ -437,6 +437,10 @@ local function ui(method, ...)
   return request('nvim_ui_'..method, ...)
 end
 
+local function notify(event_name, ...)
+  session:notify(event_name, ...)
+end
+
 local function nvim_async(method, ...)
   session:notify('nvim_'..method, ...)
 end
@@ -755,6 +759,7 @@ local module = {
   neq = neq,
   new_pipename = new_pipename,
   next_msg = next_msg,
+  notify = notify,
   nvim = nvim,
   nvim_argv = nvim_argv,
   nvim_async = nvim_async,
