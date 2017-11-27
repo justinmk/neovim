@@ -5009,13 +5009,21 @@ void win_redr_status(win_T *wp)
 static void redraw_custom_statusline(win_T *wp)
 {
   static int entered = false;
+  static uint64_t last = 0;
   int saved_did_emsg = did_emsg;
 
   /* When called recursively return.  This can happen when the statusline
    * contains an expression that triggers a redraw. */
-  if (entered)
+  if (entered) {
     return;
+  }
+  uint64_t now = os_hrtime();
+  if (false && (int)((now - last) / 1000000) < 1000) {
+    return;
+  }
+
   entered = TRUE;
+  last = os_hrtime();
 
   did_emsg = false;
   win_redr_custom(wp, false);

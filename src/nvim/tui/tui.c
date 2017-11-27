@@ -1089,6 +1089,7 @@ static void tui_event(UI *ui, char *name, Array args, bool *args_consumed)
 
 static void invalidate(UI *ui, int top, int bot, int left, int right)
 {
+  ELOG("here xxxxx");
   TUIData *data = ui->data;
   Rect *intersects = NULL;
   // Increase dimensions before comparing to ensure adjacent regions are
