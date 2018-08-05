@@ -60,7 +60,7 @@ struct multiqueue_item {
       MultiQueueItem *parent_item;
     } item;
   } data;
-  bool link;  // true: current item is just a link to a node in a child queue
+  bool link;  // Item links to a child queue.
   QUEUE node;
 };
 
@@ -222,6 +222,7 @@ static Event multiqueueitem_get_event(MultiQueueItem *item, bool remove)
 static Event multiqueue_remove(MultiQueue *self)
 {
   assert(!multiqueue_empty(self));
+  assert(self->size > 0);
   QUEUE *h = QUEUE_HEAD(&self->headtail);
   QUEUE_REMOVE(h);
   MultiQueueItem *item = multiqueue_node_data(h);
@@ -239,13 +240,14 @@ static void multiqueue_push(MultiQueue *self, Event event)
   item->data.item.event = event;
   item->data.item.parent_item = NULL;
   QUEUE_INSERT_TAIL(&self->headtail, &item->node);
-  if (self->parent) {
+  if (self->parent != NULL) {
     // push link node to the parent queue
     item->data.item.parent_item = xmalloc(sizeof(MultiQueueItem));
     item->data.item.parent_item->link = true;
     item->data.item.parent_item->data.queue = self;
     QUEUE_INSERT_TAIL(&self->parent->headtail,
                       &item->data.item.parent_item->node);
+    self->parent->size++;
   }
   self->size++;
 }
