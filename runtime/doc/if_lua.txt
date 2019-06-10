@@ -375,7 +375,9 @@ VIM.LOOP						*lua-loop*
 
 `vim.loop` exposes all features of the Nvim event-loop.  This is a lower-level
 API that provides functionality for networking, filesystem, and process
-management.
+management.  Try this command to see available functions: >
+
+    :lua print(vim.inspect(vim.loop))
 
 See http://docs.libuv.org for complete documentation.
 See https://github.com/luvit/luv/tree/master/examples for examples.
