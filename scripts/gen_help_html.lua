@@ -10,13 +10,13 @@
 --
 -- USAGE (GENERATE HTML):
 --   1. `:helptags ALL` first; this script depends on vim.fn.taglist().
---   2. nvim -V1 -es --clean +"lua require('scripts.gen_help_html').gen('./runtime/doc', 'target/dir/')" +q
+--   2. rm -rf build/runtime/doc/ && make && nvim -V1 -es --clean +"lua require('scripts.gen_help_html').gen('./runtime/doc', 'target/dir/')" +q
 --      - Read the docstring at gen().
 --   3. cd target/dir/ && jekyll serve --host 0.0.0.0
 --   4. Visit http://localhost:4000/…/help.txt.html
 --
 -- USAGE (VALIDATE):
---   1. nvim -V1 -es +"lua require('scripts.gen_help_html').validate('./runtime/doc')" +q
+--   1. rm -rf build/runtime/doc/ && make && nvim -V1 -es +"lua require('scripts.gen_help_html').validate('./runtime/doc')" +q
 --      - validate() is 10x faster than gen(), so it is used in CI.
 --
 -- SELF-TEST MODE:
@@ -28,6 +28,7 @@
 --   * visit_node() is the core function used by gen() to traverse the document tree and produce HTML.
 --   * visit_validate() is the core function used by validate().
 --   * Files in `new_layout` will be generated with a "flow" layout instead of preformatted/fixed-width layout.
+--     All Nvim-owned files should migrate to "flow" layout.
 
 local tagmap = nil ---@type table<string, string>
 local helpfiles = nil ---@type string[]
@@ -57,6 +58,7 @@ local M = {}
 
 -- These files are generated with "flow" layout (non fixed-width, wrapped text paragraphs).
 -- All other files are "legacy" files which require fixed-width layout.
+-- All Nvim-owned files should migrate to "flow" layout.
 local new_layout = {
   ['api.txt'] = true,
   ['lsp.txt'] = true,
@@ -328,7 +330,7 @@ local function ignore_parse_error(fname, s)
   end
   -- Ignore parse errors for unclosed tag.
   -- This is common in vimdocs and is treated as plaintext by :help.
-  return s:find("^[`'|*]")
+  return s:find('^``') or s:find("^['|]")
 end
 
 ---@param node TSNode

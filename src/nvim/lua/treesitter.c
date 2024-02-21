@@ -91,7 +91,7 @@ static TSLanguage *load_language(lua_State *L, const char *path, const char *lan
   return lang;
 }
 
-// Creates the language into the internal language map.
+// Creates and adds a language to the internal language map.
 //
 // Returns true if the language is correctly loaded in the language map
 int tslua_add_language(lua_State *L)
