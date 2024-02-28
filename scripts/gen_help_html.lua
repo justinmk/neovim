@@ -614,6 +614,9 @@ local function visit_node(root, level, lang_tree, headings, opt, stats)
       return text
     end
     local class = node_name == 'optional' and ' class="optional"' or ''
+    if node_name == 'optional' then
+      return ('%s<code%s>%s</code>'):format(ws(), class, trimmed)
+    end
     local s = (
       node_name == 'keycode'
         -- TODO: use <kbd>. Currently has a layout issue, example: ":help _".
@@ -773,9 +776,10 @@ local function parse_buf(fname, parser_path)
     vim.cmd('sbuffer ' .. tostring(fname)) -- Buffer number.
   end
   if parser_path then
-    vim.treesitter.language.add('vimdoc', { path = parser_path })
+    vim.treesitter.language.add('vimdoc2', { path = parser_path })
   end
-  local lang_tree = vim.treesitter.get_parser(buf)
+  local lang_tree = vim.treesitter.get_parser(buf, 'vimdoc2')
+  -- vim.print(lang_tree)
   return lang_tree, buf
 end
 

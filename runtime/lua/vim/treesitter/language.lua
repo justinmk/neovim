@@ -106,6 +106,7 @@ function M.add(lang, opts)
     path = paths[1]
   end
 
+  vim._ts_remove_language(lang)
   vim._ts_add_language(path, lang, symbol_name)
   M.register(lang, filetype)
 end
