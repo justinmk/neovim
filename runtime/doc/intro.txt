@@ -704,7 +704,7 @@ small not a single line will fit in it.  Make it at least 40 characters wide
 to be able to read most messages on the last line.
 
 ==============================================================================
-Definitions						*definitions* *jargon*
+Definitions				*concepts* *definitions* *jargon*
 
   buffer		Contains lines of text, usually from a file.
   screen		The whole area that Nvim uses to display things.
@@ -770,24 +770,24 @@ buffer lines	logical lines	window lines	screen lines ~
 
 
 API client ~
-All external UIs and remote plugins (as opposed to regular Vim plugins) are
-"clients" in general; but we call something an "API client" if its purpose is
-to abstract or wrap the RPC API for the convenience of other applications
-(just like a REST client or SDK such as boto3 for AWS: you can speak AWS REST
-using an HTTP client like curl, but boto3 wraps that in a convenient python
-interface). For example, the Nvim lua-client is an API client:
-    https://github.com/neovim/lua-client
+All UIs and remote plugins (as opposed to regular Lua/Vimscript plugins) are
+"clients", but we say "API client" if its purpose is to wrap the |RPC| API for
+convenience (just like a REST client or SDK such as boto3 for AWS: you can
+speak AWS REST using an HTTP client like curl, but boto3 wraps that in
+a convenient python interface). For example, the Nvim node-client
+https://github.com/neovim/node-client/ is an API client. Nvim itself is
+a server (it responds to RPC methods) and a client to other Nvim instances.
 
 
 Host ~
-A plugin "host" is both a client (of the Nvim API) and a server (of an
-external platform, e.g. python). It is a remote plugin that hosts other
-plugins.
+An API client that also serves requests can be called a "host". The term is
+mostly academic since all "v2" API clients are also hosts.
 
 
 Remote plugin ~
-Arbitrary code registered via |:UpdateRemotePlugins|, that runs in a separate
-process and communicates with Nvim via the |api|.
+Code running in an API client can define a RPC method which it will respond
+to. Any Lua/Vimscript plugin can invoke the RPC methods via |vim.rpcrequest()|
+and |vim.rpcnotify()|. And that makes it a "remote plugin".
 
 
 ==============================================================================
