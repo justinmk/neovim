@@ -55,7 +55,7 @@ describe(':help', function()
     command('enew')
     command('set filetype=help')
     -- XXX: hacky way to load the `help.lua` module.
-    exec_lua([[
+    n.exec_lua([[
       _G.test_help = dofile(vim.fs.joinpath(vim.env.VIMRUNTIME, 'ftplugin/help.lua'))
     ]])
   end)
@@ -67,7 +67,7 @@ describe(':help', function()
 
   it('scrub_tag()', function()
     local function scrub_tag(tag)
-      return exec_lua([[return _G.test_help.scrub_tag(...)]], tag)
+      return n.exec_lua([[return _G.test_help.scrub_tag(...)]], tag)
     end
 
     eq('b.a.z', scrub_tag('foo|b.a.z|buz||||biz'))
@@ -89,17 +89,21 @@ describe(':help', function()
 
   it('open_helptag() guesses the best tag near cursor', function()
     local function set_lines(text)
-      exec_lua([[vim.api.nvim_buf_set_lines(0, 0, -1, false, ...)]], text)
+      n.exec_lua([[vim.api.nvim_buf_set_lines(0, 0, -1, false, ...)]], text)
     end
     local cursor = n.api.nvim_win_set_cursor
     local function open_helptag()
-      local word = exec_lua([[return _G.test_help.open_helptag()]])
+      -- TODO: also test ":help FOO" explicitly.
+      n.exec[[:normal! K]]
+      local word = n.fn.expand('<cWORD>')
       local bufname = n.fn.fnamemodify(n.fn.bufname('%'), ':t')
       if n.fn.winnr('$') > 1 then
         n.command('close')
       end
       return { word, bufname }
     end
+
+    n.command[[set keywordprg=:help]]
 
     set_lines {'some plain text'}
     cursor(0, {1, 5}) -- on 'plain'
