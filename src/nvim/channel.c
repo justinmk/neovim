@@ -45,12 +45,6 @@
 #include "nvim/types_defs.h"
 #include "nvim/ui_client.h"
 
-#ifdef MSWIN
-# include "nvim/os/fs.h"
-# include "nvim/os/os_win_console.h"
-# include "nvim/os/pty_conpty_win.h"
-#endif
-
 static bool did_stdio = false;
 
 /// next free id for a job or rpc channel
@@ -374,22 +368,22 @@ Channel *channel_job_start(char **argv, const char *exepath, CallbackReader on_s
                            const char *cwd, uint16_t pty_width, uint16_t pty_height, dict_T *env,
                            varnumber_T *status_out)
 {
+  if (pty && detach) {
+    semsg(_(e_invarg2), "terminal/pty job cannot be detached");
+    shell_free_argv(argv);
+    if (env) {
+      tv_dict_free(env);
+    }
+    *status_out = 0;
+    return NULL;
+  }
+
   Channel *chan = channel_alloc(kChannelStreamProc);
   chan->on_data = on_stdout;
   chan->on_stderr = on_stderr;
   chan->on_exit = on_exit;
 
   if (pty) {
-    if (detach) {
-      semsg(_(e_invarg2), "terminal/pty job cannot be detached");
-      shell_free_argv(argv);
-      if (env) {
-        tv_dict_free(env);
-      }
-      channel_destroy_early(chan);
-      *status_out = 0;
-      return NULL;
-    }
     chan->stream.pty = pty_proc_init(&main_loop, chan);
     if (pty_width > 0) {
       chan->stream.pty.width = pty_width;
@@ -440,17 +434,15 @@ Channel *channel_job_start(char **argv, const char *exepath, CallbackReader on_s
   int status = proc_spawn(proc, has_in, has_out, has_err);
   if (status) {
     semsg(_(e_jobspawn), os_strerror(status), cmd);
-    xfree(cmd);
-    if (proc->env) {
-      tv_dict_free(proc->env);
-    }
-    channel_destroy_early(chan);
-    *status_out = proc->status;
-    return NULL;
   }
   xfree(cmd);
   if (proc->env) {
     tv_dict_free(proc->env);
+  }
+  if (status) {
+    channel_destroy_early(chan);
+    *status_out = proc->status;
+    return NULL;
   }
 
   if (has_in) {
@@ -555,44 +547,13 @@ uint64_t channel_from_stdio(bool rpc, CallbackReader on_output, const char **err
 
   Channel *channel = channel_alloc(kChannelStreamStdio);
 
+  // Repoint OS stdin/stdout (at the console on Windows, at stderr elsewhere) so the originals can
+  // back the RPC channel; the saved originals come back in stdin_dup_fd/stdout_dup_fd. See #40074.
   int stdin_dup_fd = STDIN_FILENO;
   int stdout_dup_fd = STDOUT_FILENO;
-#ifdef MSWIN
-  // Strangely, ConPTY doesn't work if stdin and stdout are pipes. So replace
-  // stdin and stdout with CONIN$ and CONOUT$, respectively.
-  if (embedded_mode && os_has_conpty_working()) {
-    stdin_dup_fd = os_dup_cloexec(STDIN_FILENO);
-    stdout_dup_fd = os_dup_cloexec(STDOUT_FILENO);
-    // :restart spawns a replacement server that must not borrow the parent
-    // Nvim process console, because that parent process will soon exit.
-    const bool restart_alloc_console = os_env_exists(ENV_RESTART_ALLOC_CONSOLE, true);
-    if (restart_alloc_console) {
-      os_unsetenv(ENV_RESTART_ALLOC_CONSOLE);
-    }
-    if (!GetConsoleWindow()) {
-      // Borrow the parent's console so CONOUT$ resolves to the real terminal,
-      // preserving io.stdout rendering (e.g. SIXEL/Kitty images). Only fall
-      // back to a hidden AllocConsole when there is no parent console (e.g.
-      // launched from a non-console parent), or for the replacement server
-      // spawned by :restart, because the parent Nvim process will soon exit.
-      if (restart_alloc_console || !AttachConsole(ATTACH_PARENT_PROCESS)) {
-        AllocConsole();
-        ShowWindow(GetConsoleWindow(), SW_HIDE);
-      }
-    }
-    os_reattach_console_stdio();
-  }
-#else
   if (embedded_mode) {
-    // Redirect stdout/stdin (the UI channel) to stderr. Use fnctl(F_DUPFD_CLOEXEC) instead of dup()
-    // to prevent child processes from inheriting the file descriptors, which are used by UIs to
-    // detect when Nvim exits.
-    stdin_dup_fd = fcntl(STDIN_FILENO, F_DUPFD_CLOEXEC, STDERR_FILENO + 1);
-    stdout_dup_fd = fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC, STDERR_FILENO + 1);
-    dup2(STDERR_FILENO, STDOUT_FILENO);
-    dup2(STDERR_FILENO, STDIN_FILENO);
+    os_embed_stdio_redirect(&stdin_dup_fd, &stdout_dup_fd);
   }
-#endif
   rstream_init_fd(&main_loop, &channel->stream.stdio.in, stdin_dup_fd);
   wstream_init_fd(&main_loop, &channel->stream.stdio.out, stdout_dup_fd, 0);
 

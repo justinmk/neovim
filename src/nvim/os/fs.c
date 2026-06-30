@@ -58,6 +58,7 @@
 # include "nvim/mbyte.h"
 # include "nvim/option.h"
 # include "nvim/os/os_win_console.h"
+# include "nvim/os/pty_conpty_win.h"
 # include "nvim/strings.h"
 #endif
 
@@ -582,6 +583,35 @@ int os_open_stdin_fd(void)
 #endif
   }
   return stdin_dup_fd;
+}
+
+/// Redirects the embedded/headless server's OS stdio so the original stdin/stdout can back the RPC
+/// channel while fd 0/1/2 are repointed away from it. The saved originals (close-on-exec) are
+/// returned via `*in_dup`/`*out_dup`; if no redirect happens they are left untouched.
+///
+/// - Windows: repoint stdin/stdout at the console (CONIN$/CONOUT$). ConPTY (|:terminal|) doesn't
+///   work when stdin/stdout are pipes, so this is required; no-op without a working ConPTY.
+/// - Other: repoint stdin/stdout at stderr (the UI channel). F_DUPFD_CLOEXEC (not dup()) keeps
+///   child processes from inheriting the originals, which UIs use to detect when Nvim exits.
+///
+/// Caller must already be in embedded/headless mode.
+void os_embed_stdio_redirect(int *in_dup, int *out_dup)
+  FUNC_ATTR_NONNULL_ALL
+{
+#ifdef MSWIN
+  if (!os_has_conpty_working()) {
+    return;
+  }
+  *in_dup = os_dup_cloexec(STDIN_FILENO);
+  *out_dup = os_dup_cloexec(STDOUT_FILENO);
+  os_acquire_console();
+  os_reattach_console_stdio();
+#else
+  *in_dup = fcntl(STDIN_FILENO, F_DUPFD_CLOEXEC, STDERR_FILENO + 1);
+  *out_dup = fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC, STDERR_FILENO + 1);
+  dup2(STDERR_FILENO, STDOUT_FILENO);
+  dup2(STDERR_FILENO, STDIN_FILENO);
+#endif
 }
 
 /// Read from a file
