@@ -76,6 +76,27 @@ void os_reattach_console_stdio(void)
   os_redirect_stdout_stderr_to_conout();
 }
 
+/// Ensures this process has a console (for the embedded server's CONIN$/CONOUT$ + ConPTY stdio).
+///
+/// Borrows the parent's console via AttachConsole() so CONOUT$ resolves to the real terminal,
+/// preserving io.stdout rendering (e.g. SIXEL/Kitty images). Falls back to a hidden AllocConsole()
+/// when there is no parent console (e.g. launched from a non-console parent), or for the
+/// replacement server spawned by |:restart| (signalled via $ENV_RESTART_ALLOC_CONSOLE), which must
+/// NOT borrow the parent console because that parent process will soon exit.
+void os_acquire_console(void)
+{
+  const bool restart_alloc_console = os_env_exists(ENV_RESTART_ALLOC_CONSOLE, true);
+  if (restart_alloc_console) {
+    os_unsetenv(ENV_RESTART_ALLOC_CONSOLE);
+  }
+  if (!GetConsoleWindow()) {
+    if (restart_alloc_console || !AttachConsole(ATTACH_PARENT_PROCESS)) {
+      AllocConsole();
+      ShowWindow(GetConsoleWindow(), SW_HIDE);
+    }
+  }
+}
+
 /// Detach from the current console and switch stdio to a hidden private one.
 ///
 /// Used when an embedded server must outlive its parent console, while keeping
